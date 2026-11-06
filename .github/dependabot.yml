@@ -1,0 +1,33 @@
+version: 2
+# Merging to main publishes :latest, and watchtower deploys it at 03:20, so review
+# Dependabot PRs like any other change. Minor/patch updates are grouped into one PR
+# per ecosystem; cooldown skips releases younger than a few days.
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 5
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 5
+    groups:
+      actions:
+        update-types: [minor, patch]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+    ignore:
+      # Stay on the Node 24 LTS line; move to a new major deliberately.
+      - dependency-name: node
+        update-types: [version-update:semver-major]
