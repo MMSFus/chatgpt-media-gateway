@@ -143,9 +143,20 @@ Docker 镜像构建需复制 `package.json`、`package-lock.json` 后在镜像�
 
 ## 上游协议边界
 
-服务直接调用 ChatGPT HTTP 接口，不启动浏览器进程。生图前会读取首页 PoW 脚本引用，生成 legacy Sentinel 信号并处理 proof-of-work 和已知格式的 Turnstile `dx`。协议实现参考 `basketikun/chatgpt2api` 的 MIT 代码；求解器无法解出 Turnstile 时会按参考实现以空 token 继续 finalize，Arkose challenge 则不支持。ChatGPT access token 并非官方发布的图片或音频 API 凭证，内部接口也可能变化。
+服务直接调用 ChatGPT HTTP 接口，不启动浏览器进程。生图前会读取首页 PoW 脚本引用，生成 legacy Sentinel 信号并处理 proof-of-work 和已知格式的 Turnstile `dx`。生图协议实现参考 `basketikun/chatgpt2api`、语音协议参考 `aurora-develop/aurora` 的 MIT 代码（见「致谢」）；求解器无法解出 Turnstile 时会按参考实现以空 token 继续 finalize，Arkose challenge 则不支持。ChatGPT access token 并非官方发布的图片或音频 API 凭证，内部接口也可能变化。
 
 本地 `npm test` 使用模拟上游验证 API、凭证加密、SSE/音频处理、图片编辑上传、代理链和合成 Turnstile 挑战，并覆盖参考实现中的 requirements 信号、PoW nonce 字段及 Turnstile 输出指令语义，包括求解失败时以空 token 继续 finalize。2026-11-05 已用真实账号验证 `n=1` 图片 URL 与 `b64_json`（成功保存 PNG），并验证真实 TTS 输出及随后的转写；转写结果与送入 TTS 的英文句子一致。`/v1/audio/translations` 仍复用转写端点，未实现英文翻译。流式输出和自动刷新 access token 目前未实现。
+
+## 致谢
+
+本项目的 ChatGPT 网页协议实现参考了以下 MIT 许可的开源项目，感谢原作者：
+
+| 项目 | 参考内容 |
+| --- | --- |
+| [basketikun/chatgpt2api](https://github.com/basketikun/chatgpt2api) | 生图链路：Sentinel 浏览器信号、proof-of-work、Turnstile `dx` 求解（`src/turnstile.js` 改编自其 `utils/turnstile.py`、`utils/pow.py`），以及拒绝提示关键词 |
+| [aurora-develop/aurora](https://github.com/aurora-develop/aurora) | 语音链路：TTS 用 assistant 消息承载原文后调用 `synthesize`、`download_url` 兜底，以及 `transcribe` 的 multipart 请求 |
+
+两个项目的版权声明和许可证全文见 [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md)。本项目与上述项目的作者没有关联，也未获得其背书。
 
 ## 许可证
 

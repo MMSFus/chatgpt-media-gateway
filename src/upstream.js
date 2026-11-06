@@ -698,7 +698,10 @@ function multipart(fields, file, filename, mimeType) {
   return { boundary, body: Buffer.concat(chunks) };
 }
 
-/** Forwards an audio file to ChatGPT transcription; translations omit the language hint and return upstream text. */
+/**
+ * Forwards an audio file to ChatGPT transcription; translations omit the language hint and return upstream text.
+ * The /transcribe multipart request follows aurora-develop/aurora (MIT), internal/chatgpt/transcribe.go.
+ */
 async function transcribe(account, chain, body, contentType, translate) {
   const parts = parseMultipart(body, contentType);
   const part = parts.find((item) => item.name === 'file' && item.filename !== undefined);
@@ -730,7 +733,11 @@ async function transcribe(account, chain, body, contentType, translate) {
   return { json: { text: transcript } };
 }
 
-/** Converts a ChatGPT conversation message to audio via the private synthesize endpoint. */
+/**
+ * Converts a ChatGPT conversation message to audio via the private synthesize endpoint.
+ * The assistant-message + synthesize + download_url flow follows aurora-develop/aurora (MIT),
+ * internal/chatgpt/tts.go; see THIRD-PARTY-LICENSES.md.
+ */
 async function speech(account, chain, body) {
   if (typeof body.input !== 'string' || !body.input.trim()) throw Object.assign(new Error('input is required'), { status: 400 });
   const sentinelToken = await sentinel(account, chain);
