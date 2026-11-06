@@ -1,0 +1,18 @@
+# Minimal example. Publishes on 127.0.0.1 only; put a TLS reverse proxy in front for public access.
+services:
+  cmg:
+    build: .
+    image: chatgpt-media-gateway:local
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8080"
+      DATA_DIR: /data
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./data:/data
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m   # sharp/libvips decodes full-size images in memory

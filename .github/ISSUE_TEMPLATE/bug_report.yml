@@ -1,0 +1,28 @@
+name: 问题反馈 / Bug report
+description: 报告缺陷或异常行为 / Report a defect
+labels: [bug]
+body:
+  - type: checkboxes
+    attributes:
+      label: 确认 / Confirmation
+      options:
+        - label: 我已阅读并同意 [免责声明](https://github.com/MMSFus/chatgpt-media-gateway/blob/main/DISCLAIMER.md) / I have read and accept the disclaimer
+          required: true
+        - label: 内容中不包含 access token、API Key、代理密码等敏感信息 / No tokens, keys or proxy passwords are included
+          required: true
+  - type: textarea
+    attributes:
+      label: 问题描述 / Description
+      description: 实际行为和期望行为 / What happened and what you expected
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 复现步骤 / Steps to reproduce
+      description: 请求路径、参数（去掉敏感信息）和返回的错误 / Endpoint, parameters (redacted) and error returned
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: 版本 / Version
+      description: 提交哈希、Node.js 版本、是否使用 Docker / Commit, Node.js version, Docker or not
