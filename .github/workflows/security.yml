@@ -1,0 +1,96 @@
+name: Security
+
+# Report-only checks: none of these jobs is a required status check.
+# - Dependency review: flags newly added dependencies with known vulnerabilities on PRs.
+# - Image scan: Trivy scans the image that CI pushed to Docker Hub, after each CI run
+#   on main and once a week (catches new CVEs in unchanged images). Results appear
+#   under Security > Code scanning.
+on:
+  pull_request:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '17 1 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: docker.io/mmsfus/chatgpt-media-gateway
+  # trivy-action defaults to an older Trivy; pin a current release explicitly.
+  TRIVY_VERSION: v0.76.1
+
+# Third-party actions are pinned to commit SHAs; the trailing comment is the release tag.
+jobs:
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
+
+  image-scan:
+    # workflow_run: only after a successful push run on main, which published the image.
+    if: >-
+      github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Pick image tag
+        id: ref
+        env:
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          # After CI, scan the exact image that run published; otherwise the current latest.
+          if [ -n "$HEAD_SHA" ]; then tag="sha-${HEAD_SHA::7}"; else tag=latest; fi
+          echo "image=${IMAGE}:${tag}" >> "$GITHUB_OUTPUT"
+          echo "Scanning ${IMAGE}:${tag}"
+
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          image-ref: ${{ steps.ref.outputs.image }}
+          scanners: vuln,secret
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH,MEDIUM
+          format: sarif
+          output: trivy.sarif
+
+      - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-image
+
+      - name: Summary table
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          image-ref: ${{ steps.ref.outputs.image }}
+          skip-setup-trivy: true
+          scanners: vuln
+          ignore-unfixed: true
+          severity: CRITICAL,HIGH
+          format: table
+          output: trivy.txt
+
+      - name: Write summary
+        run: |
+          {
+            echo "## Trivy: ${{ steps.ref.outputs.image }}"
+            echo '```text'
+            cat trivy.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
