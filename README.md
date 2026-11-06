@@ -34,6 +34,8 @@ cp .env.example .env   # 同上，填写必填项
 docker compose up -d --build
 ```
 
+也可以直接使用 CI 发布到 Docker Hub 的镜像 [`mmsfus/chatgpt-media-gateway`](https://hub.docker.com/r/mmsfus/chatgpt-media-gateway)（`linux/amd64`、`linux/arm64`）。每次合并到 `main` 会更新 `latest` 和 `sha-<短哈希>` 标签，推送 `v1.2.3` 形式的 Git 标签会额外发布 `1.2.3` 和 `1.2` 标签。把 `compose.yml` 中的 `build: .` 删掉，并把 `image` 改成 `mmsfus/chatgpt-media-gateway:latest` 即可直接拉取。
+
 示例 `compose.yml` 只在 `127.0.0.1:8080` 上发布端口，数据保存在 `./data`（镜像内以 uid 1000 的 `node` 用户运行，宿主目录需对其可写）。请妥善备份 `DATA_ENCRYPTION_KEY`，丢失后已存的 token 和代理凭据无法解密。
 
 ## API
