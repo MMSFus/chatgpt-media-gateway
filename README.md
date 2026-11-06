@@ -1,38 +1,40 @@
 # ChatGPT Media Gateway
 
-面向自托管场景的 ChatGPT 语音与图片 API 网关。项目只提供管理员控制台，调用方通过 API 使用服务，不包含终端用户工作台。
+[![CI](https://github.com/MMSFus/chatgpt-media-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/MMSFus/chatgpt-media-gateway/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+![Node.js 24+](https://img.shields.io/badge/node-%3E%3D24-339933)
+
+面向自托管场景的 ChatGPT 语音与图片 API 网关，对外提供 OpenAI 风格的 `/v1/images/*` 和 `/v1/audio/*` 接口。项目只提供管理员控制台，调用方通过 API 使用服务，不包含终端用户工作台。
+
+A self-hosted gateway that exposes ChatGPT web image and voice features through OpenAI-style `/v1/images/*` and `/v1/audio/*` endpoints. Documentation is in Chinese.
+
+> [!WARNING]
+> 本项目调用 ChatGPT 网页端内部接口，不是 OpenAI 官方 API，与 OpenAI 无关。使用可能违反 OpenAI 服务条款并导致账号受限，风险由使用者自行承担。仅供学习研究，请只接入你有权使用的账号。使用前请阅读 [免责声明](DISCLAIMER.md)。
+>
+> This project uses internal ChatGPT web endpoints, not the official OpenAI API, and is not affiliated with OpenAI. Use may violate OpenAI's terms and get accounts restricted, at your own risk. Read the [disclaimer](DISCLAIMER.md) before use.
 
 ## 运行
 
 要求 Node.js 24 或更新版本。SQLite 使用 Node 内置的 `node:sqlite`；图像按目标尺寸压缩使用 `sharp@0.35.5`。本地安装依赖使用 `npm ci`。
 
-`.env` 示例（`ADMIN_KEY` 与 `API_KEY` 都是必填项）：
-
-```dotenv
-HOST=127.0.0.1
-PORT=8080
-# 仅在会覆盖 X-Forwarded-Proto 的反向代理（如 Caddy）之后设为 1，url 返回格式才会生成 https 链接
-TRUST_PROXY=0
-ADMIN_KEY=replace-with-admin-key
-API_KEY=replace-with-client-api-key
-DATA_ENCRYPTION_KEY=replace-with-64-hex-characters
-DATA_DIR=./data
-CHATGPT_BASE_URL=https://chatgpt.com/backend-api
-TENCENTCLOUD_SECRET_ID=replace-with-secret-id
-TENCENTCLOUD_SECRET_KEY=replace-with-secret-key
-TENCENT_COS_BUCKET=example-1250000000
-TENCENT_REGION=ap-guangzhou
-TENCENT_TIIA_BASE_URL=https://tiia.tencentcloudapi.com
-TENCENT_COS_BASE_URL=
-```
-
 ```sh
+npm ci
+cp .env.example .env   # 填写 ADMIN_KEY、API_KEY，并用 openssl rand -hex 32 生成 DATA_ENCRYPTION_KEY
 npm start
 ```
 
 `ADMIN_KEY`、`API_KEY` 和 32 字节十六进制 `DATA_ENCRYPTION_KEY` 都必须设置。项目目录中的 `.env` 会在启动时读取，已存在的进程环境变量优先。默认监听 `127.0.0.1:8080`，数据库位于 `./data/gateway.sqlite`。对外提供服务时，应由 TLS 反向代理保护连接。
 
 启动后访问 `http://127.0.0.1:8080/admin` 打开管理控制台。管理员密钥和调用方密钥不同；账号 token 与代理 URL 使用 AES-256-GCM 加密后存入 SQLite，数据库文件权限设为仅当前用户读写。请求日志仅记录路径、账号 ID、状态码、耗时和错误摘要，不保存提示词或上传文件。
+
+### Docker
+
+```sh
+cp .env.example .env   # 同上，填写必填项
+docker compose up -d --build
+```
+
+示例 `compose.yml` 只在 `127.0.0.1:8080` 上发布端口，数据保存在 `./data`（镜像内以 uid 1000 的 `node` 用户运行，宿主目录需对其可写）。请妥善备份 `DATA_ENCRYPTION_KEY`，丢失后已存的 token 和代理凭据无法解密。
 
 ## API
 
@@ -111,7 +113,7 @@ curl http://127.0.0.1:8080/v1/audio/transcriptions \
 
 管理员控制台支持添加、停用、删除和轮换 access token，并为每个账号指定代理。路由顺序是：全局出口代理及其下一跳 → 账号代理（若未指定则使用默认代理）→ 该代理的下一跳。代理链中若已包含某个节点，不会重复连接。没有配置全局出口时，从账号/默认代理开始；未配置账号/默认代理时则从全局出口开始；两者都未配置时直连。
 
-调度按账号当前 in-flight 数选择负载最低者，同负载时轮询；默认每账号最多 2 个上游请求。账号错误包括 ChatGPT 上游非 2xx、网络/代理/TLS/超时错误、SSE 或响应解析失败、force_login 以及图片轮询失败。每次错误增加连续错误计数并默认冷却 10 分钟；默认连续 3 次后自动停用。冷却结束会恢复 ready 但保留计数，成功请求或管理员重新启用/轮换 token 会清零。参数校验 4xx 和 SR/CR 后处理错误不计入账号错误。当前上游响应没有稳定的内容政策拒绝标记，因此无法可靠地区分这类拒绝与普通生成失败；无法区分的拒绝按账号错误计数。每个请求默认最多尝试 3 个不同账号；编辑重试会在新账号上重新上传参考图。账号满载时默认最多排队 60 秒，等待队列默认上限 100，超时或队列已满返回 503。
+调度按账号当前 in-flight 数选择负载最低者，同负载时轮询；每账号的并发上限由账号的 `concurrency` 决定（默认 1）。账号错误包括 ChatGPT 上游非 2xx、网络/代理/TLS/超时错误、SSE 或响应解析失败、force_login 以及图片轮询失败。每次错误增加连续错误计数并默认冷却 10 分钟；默认连续 3 次后自动停用。冷却结束会恢复 ready 但保留计数，成功请求或管理员重新启用/轮换 token 会清零。参数校验 4xx 和 SR/CR 后处理错误不计入账号错误。当前上游响应没有稳定的内容政策拒绝标记，因此无法可靠地区分这类拒绝与普通生成失败；无法区分的拒绝按账号错误计数。每个请求默认最多尝试 3 个不同账号；编辑重试会在新账号上重新上传参考图。账号满载时默认最多排队 60 秒，等待队列默认上限 100，超时或队列已满返回 503。
 
 `PUT /api/admin/settings` 可部分更新以下数值设置，未提供的值保持原值；非法值返回 400：
 
@@ -123,11 +125,11 @@ curl http://127.0.0.1:8080/v1/audio/transcriptions \
 | `queueTimeoutSeconds` | 60 | 0–600 | 满载排队最长时间；0 表示不排队 |
 | `maxQueue` | 100 | 0–10000 | 等待队列上限 |
 
-账号的 `concurrency` 是每账号独立的并发上限，默认 1，可在新增或更新账号时设置为 1–5。调度器按 `inFlight/concurrency` 最低优先分配，并列轮询；调低上限不会中断进行中的请求，调高会立即唤醒队列。384 MB 容器应结合启用账号的并发总量与图像流量保守配置。
+账号的 `concurrency` 是每账号独立的并发上限，默认 1，可在新增或更新账号时设置为 1–5。调度器按 `inFlight/concurrency` 最低优先分配，并列轮询；调低上限不会中断进行中的请求，调高会立即唤醒队列。512 MB 容器应结合启用账号的并发总量与图像流量保守配置。
 
 对于 `/v1/images/generations`、`/v1/images/edits` 及其 SR/CR 前缀路径，`size=WxH` 会启用初始图片尺寸检查：原图比例与目标相差不超过约 2% 且至少一个边大于目标时，按 cover 居中裁剪并缩至精确目标尺寸；其余图片保持原样。比例请求（如 `16:9`）和未指定尺寸不会触发下载或压缩。压缩后的图片再按 URL 顺序进入 SR/CR 处理链。
 
-Docker 镜像构建需复制 `package.json`、`package-lock.json` 后在镜像内运行 `npm ci --omit=dev`，再复制 `src/`、`public/` 等运行文件；Node 24 Alpine 的安装应保留 npm 可选依赖，以安装匹配 musl 的 sharp 二进制包。部署定义位于独立的 `ops/` 工作区。
+Docker 镜像构建需复制 `package.json`、`package-lock.json` 后在镜像内运行 `npm ci --omit=dev`，再复制 `src/`、`public/` 等运行文件；Node 24 Alpine 的安装应保留 npm 可选依赖，以安装匹配 musl 的 sharp 二进制包。仓库根目录的 `Dockerfile` 和 `compose.yml` 是可直接使用的示例。
 
 `PUT /api/admin/settings` 接受部分对象并保留未提供的旧值。设置形状为 `{ defaultProxyId, exitProxyId, tencentProxyId }`：前两项是代理 ID 或 `null`；`tencentProxyId` 是 `null`（跟随出口链）、`direct`（直连）或代理 ID。`POST /api/admin/proxy-test` 传入 `{"target":"tencent"}` 可测试当前腾讯云链路。
 
@@ -142,3 +144,7 @@ Docker 镜像构建需复制 `package.json`、`package-lock.json` 后在镜像�
 服务直接调用 ChatGPT HTTP 接口，不启动浏览器进程。生图前会读取首页 PoW 脚本引用，生成 legacy Sentinel 信号并处理 proof-of-work 和已知格式的 Turnstile `dx`。协议实现参考 `basketikun/chatgpt2api` 的 MIT 代码；求解器无法解出 Turnstile 时会按参考实现以空 token 继续 finalize，Arkose challenge 则不支持。ChatGPT access token 并非官方发布的图片或音频 API 凭证，内部接口也可能变化。
 
 本地 `npm test` 使用模拟上游验证 API、凭证加密、SSE/音频处理、图片编辑上传、代理链和合成 Turnstile 挑战，并覆盖参考实现中的 requirements 信号、PoW nonce 字段及 Turnstile 输出指令语义，包括求解失败时以空 token 继续 finalize。2026-11-05 已用真实账号验证 `n=1` 图片 URL 与 `b64_json`（成功保存 PNG），并验证真实 TTS 输出及随后的转写；转写结果与送入 TTS 的英文句子一致。`/v1/audio/translations` 仍复用转写端点，未实现英文翻译。流式输出和自动刷新 access token 目前未实现。
+
+## 许可证
+
+本项目以 [MIT 许可证](LICENSE) 发布，使用前请阅读 [免责声明](DISCLAIMER.md)。第三方代码和依赖的许可证见 [THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md)。安全问题请按 [SECURITY.md](SECURITY.md) 私密报告。

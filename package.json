@@ -1,6 +1,12 @@
 {
   "name": "chatgpt-media-gateway",
   "version": "0.1.0",
+  "description": "Self-hosted gateway exposing ChatGPT web image and voice features through OpenAI-style APIs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/MMSFus/chatgpt-media-gateway.git"
+  },
   "private": true,
   "type": "module",
   "engines": {
