@@ -1,0 +1,633 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Media Gateway 管理</title>
+  <style>
+    :root { color-scheme: light; --ink:#172126; --muted:#69777c; --line:#d9e0df; --paper:#fff; --canvas:#f3f6f5; --green:#137b61; --red:#a63c39; --blue:#286c91; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--canvas); color:var(--ink); font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    button,input,select,textarea { font:inherit; }
+    button { min-height:36px; border:1px solid #b8c4c1; background:#fff; color:var(--ink); padding:7px 12px; border-radius:5px; cursor:pointer; }
+    button:hover { border-color:var(--green); color:var(--green); }
+    button.primary { background:var(--green); border-color:var(--green); color:#fff; }
+    button.danger { color:var(--red); }
+    button:disabled { opacity:.55; cursor:wait; }
+    input,select,textarea { width:100%; min-height:38px; border:1px solid #bdc9c7; border-radius:4px; padding:8px 10px; background:#fff; color:var(--ink); }
+    textarea { min-height:76px; resize:vertical; }
+    label { display:grid; gap:5px; color:#445257; font-size:13px; }
+    header { height:58px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; background:#fff; border-bottom:1px solid var(--line); }
+    header strong { font-size:15px; }
+    header .status { color:var(--muted); font-size:12px; }
+    main { max-width:1240px; margin:auto; padding:22px 24px 48px; }
+    nav { display:flex; gap:4px; border-bottom:1px solid var(--line); margin-bottom:20px; }
+    nav button { background:transparent; border:0; border-radius:0; min-width:94px; color:var(--muted); }
+    nav button.active { color:var(--green); box-shadow:inset 0 -2px var(--green); }
+    h1 { margin:0 0 5px; font-size:22px; }
+    h2 { margin:0 0 14px; font-size:16px; }
+    p.sub { margin:0 0 20px; color:var(--muted); }
+    .toolbar { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
+    .toolbar h2 { margin:0; }
+    .split { display:grid; grid-template-columns:minmax(0,1.6fr) minmax(275px,1fr); gap:18px; align-items:start; }
+    .panel { background:var(--paper); border:1px solid var(--line); border-radius:6px; padding:16px; }
+    .form { display:grid; gap:12px; }
+    .form .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .table-wrap { overflow:auto; background:#fff; border:1px solid var(--line); border-radius:6px; }
+    table { border-collapse:collapse; width:100%; min-width:650px; }
+    th,td { text-align:left; border-bottom:1px solid #e5eae8; padding:10px 12px; vertical-align:middle; }
+    th { color:#5d6c70; background:#f8faf9; font-size:12px; font-weight:600; white-space:nowrap; }
+    tr:last-child td { border-bottom:0; }
+    td small { color:var(--muted); }
+    .actions { display:flex; gap:6px; white-space:nowrap; }
+    .actions button { min-height:30px; padding:4px 8px; font-size:12px; }
+    .badge { display:inline-block; padding:2px 7px; border-radius:10px; background:#e7f2ee; color:#14664f; font-size:12px; }
+    .badge.off { background:#f3e9e8; color:#8d3734; }
+    .notice { min-height:20px; color:var(--muted); font-size:13px; }
+    .notice.error { color:var(--red); }
+    .notice.good { color:var(--green); }
+    .empty { padding:22px; text-align:center; color:var(--muted); }
+    .settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:14px; }
+    .login { width:min(420px,calc(100% - 32px)); margin:12vh auto; }
+    .login h1 { margin-bottom:18px; }
+    .hidden { display:none !important; }
+    .hint { margin:0; color:var(--muted); font-size:12px; }
+    .check { display:flex; flex-direction:row; align-items:center; gap:8px; }
+    .check input { width:auto; min-height:auto; }
+    .seg { display:inline-flex; width:max-content; border:1px solid #b8c4c1; border-radius:5px; overflow:hidden; }
+    .seg button { border:0; border-radius:0; min-height:32px; }
+    .seg button.active { background:var(--green); color:#fff; }
+    .chain { display:flex; flex-wrap:wrap; align-items:center; gap:6px; min-height:40px; padding:6px 8px; border:1px dashed #bdc9c7; border-radius:4px; }
+    .chip { display:inline-flex; align-items:center; gap:2px; padding:2px 2px 2px 9px; border-radius:12px; background:#e5eff4; color:var(--blue); font-size:12px; font-weight:600; }
+    .chip button { min-height:22px; padding:0 7px; border:0; background:transparent; color:inherit; }
+    .arrow { color:var(--muted); }
+    .endpoint { display:block; padding:8px 10px; background:var(--canvas); border-radius:4px; font-size:12px; word-break:break-all; }
+    .split.bench { grid-template-columns:minmax(300px,1fr) minmax(0,1.6fr); }
+    .split.half { grid-template-columns:minmax(0,1fr) minmax(0,1fr); }
+    #importTable table { min-width:0; }
+    .results { display:grid; gap:14px; }
+    .result { display:grid; gap:10px; }
+    .result-head { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; }
+    .result-head code { font-size:12px; word-break:break-all; }
+    .badge.wait { background:#edf0ef; color:#4f5d61; }
+    .badge.cool { background:#fbf1dc; color:#8a5a0b; }
+    .sched-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+    @media (max-width:720px) { .sched-grid { grid-template-columns:1fr 1fr; } }
+    .result .error { margin:0; color:var(--red); white-space:pre-wrap; word-break:break-word; }
+    .thumbs { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; }
+    .thumb { margin:0; display:grid; gap:6px; }
+    .thumb img { width:100%; aspect-ratio:1; object-fit:contain; background:var(--canvas); border:1px solid var(--line); border-radius:4px; }
+    .thumb figcaption { color:var(--muted); font-size:12px; }
+    audio { width:100%; }
+    .mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12px; }
+    .st-ok { color:var(--green); } .st-bad { color:var(--red); } .st-skip { color:var(--muted); } .st-warn { color:#9a6a12; }
+    @media (max-width:800px) { header { padding:0 16px; } main { padding:18px 14px 36px; } .split, .split.bench, .split.half { grid-template-columns:1fr; } .settings-grid { grid-template-columns:1fr; } }
+    @media (max-width:480px) { nav { overflow-x:auto; } nav button { min-width:auto; flex:none; padding:7px 10px; } header .status { display:none; } .form .row { grid-template-columns:1fr; } .toolbar { align-items:flex-start; flex-direction:column; } }
+  </style>
+</head>
+<body>
+  <section id="login" class="panel login">
+    <h1>Media Gateway</h1>
+    <form id="loginForm" class="form">
+      <label>管理员密钥<input id="adminKey" type="password" autocomplete="current-password" required></label>
+      <button class="primary" type="submit">进入控制台</button>
+      <div id="loginMessage" class="notice" role="status"></div>
+    </form>
+  </section>
+  <div id="app" class="hidden">
+    <header><strong>Media Gateway <span class="badge">管理员</span></strong><div><span id="connection" class="status">未连接</span> <button id="logout">退出</button></div></header>
+    <main>
+      <h1>服务管理</h1>
+      <p class="sub">接口测试、账号凭证、出站代理和 API 请求状态</p>
+      <nav aria-label="管理视图">
+        <button data-tab="bench" class="active">工作台</button>
+        <button data-tab="accounts">账号</button>
+        <button data-tab="import">批量导入</button>
+        <button data-tab="proxies">代理</button>
+        <button data-tab="logs">请求记录</button>
+      </nav>
+      <section id="bench" class="view">
+        <div class="split bench">
+          <form id="benchForm" class="panel form" novalidate>
+            <label>API Key<input id="benchKey" type="password" autocomplete="off" placeholder="调用 /v1 用的 API_KEY，仅存于本标签页"></label>
+            <div class="seg" role="tablist" aria-label="接口">
+              <button type="button" data-mode="image" class="active">生图</button>
+              <button type="button" data-mode="edit">改图</button>
+              <button type="button" data-mode="speech">语音</button>
+            </div>
+            <div data-for="image edit" class="form">
+              <div data-for="edit" class="form hidden">
+                <label>参考图（1–4 张，PNG / JPEG / WebP，每张 ≤20 MB）<input id="editFiles" type="file" accept="image/png,image/jpeg,image/webp" multiple></label>
+                <div id="editPreview" class="thumbs"></div>
+              </div>
+              <label>提示词<textarea name="prompt" rows="4" placeholder="一只坐在窗边的橘猫，水彩风格"></textarea></label>
+              <div class="row">
+                <label>模型<input name="model" value="gpt-image-2" list="modelList"></label>
+                <label>数量 n<select name="n"><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+              </div>
+              <div class="row">
+                <label>尺寸 size<input name="size" list="sizeList" placeholder="auto"></label>
+                <label>质量 quality<select name="quality"><option value="">auto</option><option>low</option><option>medium</option><option>high</option></select></label>
+              </div>
+              <p class="hint">只有写成像素（如 2048x3072）才会触发超分倍率计算；比例或 auto 时 SR 跳过。</p>
+              <div class="form" style="gap:6px">
+                <span style="color:#445257;font-size:13px">后处理链（按顺序执行，最多 4 步）</span>
+                <div id="chain" class="chain"></div>
+                <div class="actions"><button type="button" data-step="SR">+ SR 超分</button><button type="button" data-step="CR">+ CR 增强</button><button type="button" id="chainClear">清空</button></div>
+              </div>
+              <label>返回格式<select name="response_format"><option>b64_json</option><option>url</option></select></label>
+            </div>
+            <div data-for="speech" class="form hidden">
+              <label>文本<textarea name="input" rows="4" placeholder="要朗读的文字"></textarea></label>
+              <div class="row">
+                <label>声音<select name="voice"><option>alloy</option><option>ash</option><option>coral</option><option>echo</option><option>fable</option><option>onyx</option><option>nova</option><option>sage</option><option>shimmer</option></select></label>
+                <label>格式<select name="audio_format"><option>mp3</option><option>opus</option><option>aac</option></select></label>
+              </div>
+            </div>
+            <code id="endpoint" class="endpoint"></code>
+            <div class="actions"><button class="primary" type="submit" id="benchSend">发送</button><button type="button" id="benchAbort" class="hidden">取消</button></div>
+            <div id="benchMessage" class="notice" role="status"></div>
+          </form>
+          <div>
+            <div class="toolbar"><h2>结果</h2><button id="benchClear" type="button">清空结果</button></div>
+            <div id="results" class="results"><div class="panel empty">还没有请求。生图通常要 30–90 秒，带超分会更久。</div></div>
+          </div>
+        </div>
+        <datalist id="modelList"><option value="gpt-image-2"><option value="gpt-image-2.5"><option value="gpt-image-1"></datalist>
+        <datalist id="sizeList"><option value="auto"><option value="1024x1024"><option value="1024x1536"><option value="1536x1024"><option value="2048x2048"><option value="2048x3072"><option value="3072x2048"><option value="4096x4096"><option value="16:9"><option value="9:16"><option value="4:3"></datalist>
+      </section>
+      <section id="import" class="view hidden">
+        <div class="split half">
+          <div class="panel form">
+            <h2>批量导入 Access token</h2>
+            <label>上传文件（.txt / .csv，按行解析）<input id="importFile" type="file" accept=".txt,.csv,.tsv,text/plain,text/csv"></label>
+            <label>或直接粘贴<textarea id="importText" rows="7" class="mono" placeholder="每行一条。可以是纯 token，也可以是 邮箱----密码----token 这类带分隔符的行"></textarea></label>
+            <div class="row">
+              <label>解析方式<select id="importMode"><option value="line">整行就是 token</option><option value="split">按分隔符拆分</option></select></label>
+              <label id="sepWrap" class="hidden">分隔符<select id="importSep"><option value="----">----</option><option value="&#9;">Tab</option><option value=",">逗号 ,</option><option value="|">竖线 |</option><option value=":">冒号 :</option><option value=";">分号 ;</option><option value=" ">空格</option><option value="custom">自定义…</option></select></label>
+            </div>
+            <label id="sepCustomWrap" class="hidden">自定义分隔符<input id="importSepCustom" placeholder="例如 ##"></label>
+            <div id="colWrap" class="row hidden">
+              <label>token 所在列<select id="importCol"></select></label>
+              <label>名称所在列<select id="importNameCol"></select></label>
+            </div>
+            <div class="row">
+              <label>名称前缀（无名称列时）<input id="importPrefix" value="batch" maxlength="40"></label>
+              <label>账号代理<select id="importProxy"><option value="">使用默认代理</option></select></label>
+            </div>
+            <label class="check"><input id="importJwtOnly" type="checkbox" checked>只导入 eyJ 开头的值（防止选错列）</label>
+            <div class="actions"><button class="primary" id="importRun" type="button" disabled>导入</button><button id="importReset" type="button">清空</button></div>
+            <div id="importMessage" class="notice" role="status"></div>
+          </div>
+          <div>
+            <div class="toolbar"><h2>预览</h2><span id="importStats" class="hint"></span></div>
+            <div id="importTable" class="table-wrap"><div class="empty">载入文件或粘贴内容后显示</div></div>
+          </div>
+        </div>
+      </section>
+      <section id="accounts" class="view hidden">
+        <div class="toolbar"><h2>ChatGPT 账号</h2><button id="reloadAccounts">刷新</button></div>
+        <div class="split">
+          <div id="accountTable" class="table-wrap"></div>
+          <form id="accountForm" class="panel form">
+            <h2>添加账号</h2>
+            <label>名称<input name="label" maxlength="80" required></label>
+            <label>Access token<textarea name="token" autocomplete="off" required></textarea></label>
+            <label>账号代理<select name="proxyId"><option value="">使用默认代理</option></select></label>
+            <label>并发<select name="concurrency"><option value="1" selected>1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></label>
+            <button class="primary" type="submit">保存账号</button>
+            <div id="accountMessage" class="notice" role="status"></div>
+          </form>
+        </div>
+        <form id="schedForm" class="panel form" style="margin-top:14px" novalidate>
+          <h2>调度与容错</h2>
+          <div class="sched-grid">
+            <label>出错冷却（分钟）<input name="cooldownMinutes" type="number" min="0" max="1440" step="1" required></label>
+            <label>连续错误停用（次）<input name="maxConsecutiveErrors" type="number" min="0" max="100" step="1" required></label>
+            <label>最多尝试账号数<input name="maxAttempts" type="number" min="1" max="10" step="1" required></label>
+            <label>满载排队超时（秒）<input name="queueTimeoutSeconds" type="number" min="0" max="600" step="1" required></label>
+            <label>排队上限<input name="maxQueue" type="number" min="0" max="10000" step="1" required></label>
+          </div>
+          <p class="hint">账号调用上游出错一次就冷却，并累计连续错误次数，成功后清零；累计达到上限后自动停用，需手动启用。出错时会换一个没试过的账号重放请求，「最多尝试账号数」包含第一次。参数错误和腾讯云后处理失败不计入，也不切换账号。冷却或停用设为 0 表示关闭该功能。</p>
+          <div class="actions"><button class="primary" type="submit">保存调度设置</button><span id="schedLive" class="hint"></span></div>
+          <div id="schedMessage" class="notice" role="status"></div>
+        </form>
+      </section>
+      <section id="proxies" class="view hidden">
+        <div class="toolbar"><h2>代理节点</h2><div class="actions"><button id="testDefault">测试当前代理链</button><button id="testTencent">测试腾讯云链路</button></div></div>
+        <div class="split">
+          <div id="proxyTable" class="table-wrap"></div>
+          <div>
+            <form id="proxyForm" class="panel form">
+              <h2 id="proxyFormTitle">添加代理</h2>
+              <input name="id" type="hidden">
+              <label>名称<input name="label" maxlength="80" required></label>
+              <label>代理 URL<input name="url" placeholder="socks5h://user:pass@host:1080" required></label>
+              <label>下一跳<select name="nextProxyId"><option value="">无</option></select></label>
+              <div class="actions"><button class="primary" type="submit">保存代理</button><button id="cancelProxyEdit" type="button" class="hidden">取消编辑</button></div>
+              <div id="proxyMessage" class="notice" role="status"></div>
+            </form>
+            <form id="settingsForm" class="panel form" style="margin-top:14px">
+              <h2>全局路由</h2>
+              <label>默认代理<select name="defaultProxyId"><option value="">直连</option></select></label>
+              <label>全局出口代理<select name="exitProxyId"><option value="">不追加出口代理</option></select></label>
+              <label>腾讯云（SR/CR）代理<select name="tencentProxyId"></select></label>
+              <p class="hint">腾讯云请求不走账号代理和默认代理。选具体代理时从它开始，沿下一跳连接，不再追加全局出口。</p>
+              <button class="primary" type="submit">保存路由</button>
+              <div id="settingsMessage" class="notice" role="status"></div>
+            </form>
+          </div>
+        </div>
+      </section>
+      <section id="logs" class="view hidden">
+        <div class="toolbar"><h2>最近请求</h2><button id="reloadLogs">刷新</button></div>
+        <div id="logTable" class="table-wrap"></div>
+      </section>
+    </main>
+  </div>
+  <script>
+    const q = (selector, root = document) => root.querySelector(selector);
+    const qa = (selector, root = document) => [...root.querySelectorAll(selector)];
+    const state = { key: sessionStorage.getItem('admin-key') || '', summary: null };
+    const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]);
+    async function api(path, options = {}) {
+      const response = await fetch(path, { ...options, headers: { Authorization: `Bearer ${state.key}`, ...(options.body ? { 'Content-Type':'application/json' } : {}), ...options.headers } });
+      const value = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(value.error?.message || `HTTP ${response.status}`);
+      return value;
+    }
+    function message(id, text, kind = '') { const el = q(`#${id}`); el.textContent = text; el.className = `notice ${kind}`; }
+    function options(items, selected, emptyLabel) {
+      return `<option value="">${esc(emptyLabel)}</option>${items.map((item) => `<option value="${esc(item.id)}" ${item.id === selected ? 'selected' : ''}>${esc(item.label)}</option>`).join('')}`;
+    }
+    const SCHED_KEYS = ['cooldownMinutes', 'maxConsecutiveErrors', 'maxAttempts', 'queueTimeoutSeconds', 'maxQueue'];
+    const concurrencyOptions = (selected) => [1, 2, 3, 4, 5].map((n) => `<option value="${n}" ${n === selected ? 'selected' : ''}>${n}</option>`).join('');
+    function accountBadge(item) {
+      if (!item.enabled) return `<span class="badge off">${item.state === 'disabled' ? '已自动停用' : '已停用'}</span>`;
+      if (item.state === 'cooldown') {
+        const until = item.cooldownUntil ? new Date(item.cooldownUntil) : null;
+        const left = until ? Math.max(0, Math.ceil((until - Date.now()) / 60000)) : null;
+        return `<span class="badge cool" title="${until ? esc(until.toLocaleString()) : ''}">冷却中${left === null ? '' : ` · 约 ${left} 分钟`}</span>`;
+      }
+      if (item.state === 'ready') return '<span class="badge">可用</span>';
+      return `<span class="badge off">${esc(item.state)}</span>`;
+    }
+    function renderSched() {
+      const { settings, scheduler } = state.summary;
+      const form = q('#schedForm');
+      // Don't clobber values the admin is in the middle of editing.
+      if (!form.contains(document.activeElement)) for (const key of SCHED_KEYS) form.elements[key].value = settings[key] ?? '';
+      q('#schedLive').textContent = scheduler ? `当前进行中 ${scheduler.inFlight} · 排队 ${scheduler.queued}` : '';
+    }
+    function renderAccounts() {
+      const accounts = state.summary.accounts;
+      const proxyMap = new Map(state.summary.proxies.map((proxy) => [proxy.id, proxy.label]));
+      const limit = state.summary.settings.maxConsecutiveErrors;
+      q('#accountTable').innerHTML = accounts.length ? `<table><thead><tr><th>名称</th><th>状态</th><th>账号代理</th><th>并发</th><th>添加时间</th><th></th></tr></thead><tbody>${accounts.map((item) => `<tr><td>${esc(item.label)}<br><small>token 已加密保存</small></td><td>${accountBadge(item)}<br><small>进行中 ${esc(item.inFlight ?? 0)}/${esc(item.concurrency ?? 1)} · 连续错误 ${esc(item.consecutiveErrors ?? 0)}${limit ? ` / ${esc(limit)}` : ''}</small>${item.lastError ? `<br><small>${esc(item.lastError)}</small>` : ''}</td><td><select data-account-proxy="${esc(item.id)}">${options(state.summary.proxies, item.proxyId, '默认')}</select></td><td><select data-account-concurrency="${esc(item.id)}" aria-label="并发">${concurrencyOptions(item.concurrency ?? 1)}</select></td><td>${esc(new Date(item.createdAt).toLocaleString())}</td><td><div class="actions"><button data-account-token="${esc(item.id)}">替换令牌</button><button data-account-toggle="${esc(item.id)}" data-enabled="${item.enabled}">${item.enabled ? '停用' : '启用'}</button><button class="danger" data-account-delete="${esc(item.id)}">删除</button></div></td></tr>`).join('')}</tbody></table>` : '<div class="empty">尚未添加账号</div>';
+      q('#accountForm select').innerHTML = options(state.summary.proxies, '', '使用默认代理');
+      const importProxy = q('#importProxy').value;
+      q('#importProxy').innerHTML = options(state.summary.proxies, importProxy, '使用默认代理');
+    }
+    function renderProxies() {
+      const { proxies, settings } = state.summary;
+      const proxyMap = new Map(proxies.map((proxy) => [proxy.id, proxy.label]));
+      q('#proxyTable').innerHTML = proxies.length ? `<table><thead><tr><th>名称</th><th>地址</th><th>下一跳</th><th></th></tr></thead><tbody>${proxies.map((item) => `<tr><td>${esc(item.label)}</td><td><code>${esc(item.url.replace(/:\/\/[^/@]+@/, '://••••@'))}</code></td><td>${esc(proxyMap.get(item.nextProxyId) || '无')}</td><td><div class="actions"><button data-proxy-test="${esc(item.id)}">测试</button><button data-proxy-edit="${esc(item.id)}">编辑</button><button class="danger" data-proxy-delete="${esc(item.id)}">删除</button></div></td></tr>`).join('')}</tbody></table>` : '<div class="empty">尚未配置代理</div>';
+      q('#proxyForm select').innerHTML = options(proxies, '', '无');
+      q('#settingsForm [name="defaultProxyId"]').innerHTML = options(proxies, settings.defaultProxyId, '直连');
+      q('#settingsForm [name="exitProxyId"]').innerHTML = options(proxies, settings.exitProxyId, '不追加出口代理');
+      q('#settingsForm [name="tencentProxyId"]').innerHTML = options(proxies, settings.tencentProxyId, '跟随全局出口（默认）').replace('</option>', `</option><option value="direct" ${settings.tencentProxyId === 'direct' ? 'selected' : ''}>直连</option>`);
+    }
+    function renderLogs(logs = state.summary.logs) {
+      q('#logTable').innerHTML = logs.length ? `<table><thead><tr><th>时间</th><th>接口</th><th>账号</th><th>HTTP</th><th>耗时</th><th>错误</th></tr></thead><tbody>${logs.map((item) => `<tr><td>${esc(new Date(item.createdAt).toLocaleString())}</td><td>${esc(item.route)}</td><td>${esc(item.accountId || '未分配')}</td><td>${esc(item.status)}</td><td>${esc(item.durationMs)} ms</td><td>${esc(item.error)}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">暂无请求记录</div>';
+    }
+    async function refresh() {
+      state.summary = await api('/api/admin/summary');
+      q('#login').classList.add('hidden'); q('#app').classList.remove('hidden');
+      const accts = state.summary.accounts;
+      const usable = accts.filter((item) => item.enabled && item.state === 'ready').length;
+      q('#connection').textContent = `${accts.length} 个账号（可用 ${usable}）· ${state.summary.proxies.length} 个代理`;
+      renderAccounts(); renderSched(); renderProxies(); renderLogs();
+    }
+    q('#loginForm').addEventListener('submit', async (event) => {
+      event.preventDefault(); state.key = q('#adminKey').value; sessionStorage.setItem('admin-key', state.key);
+      try { await refresh(); message('loginMessage', ''); } catch (error) { message('loginMessage', error.message, 'error'); sessionStorage.removeItem('admin-key'); }
+    });
+    q('#logout').addEventListener('click', () => { sessionStorage.removeItem('admin-key'); state.key = ''; location.reload(); });
+    qa('nav button').forEach((button) => button.addEventListener('click', () => {
+      qa('nav button').forEach((item) => item.classList.toggle('active', item === button));
+      qa('.view').forEach((view) => view.classList.toggle('hidden', view.id !== button.dataset.tab));
+    }));
+    q('#accountForm').addEventListener('submit', async (event) => {
+      // event.currentTarget becomes null after the first await, so keep the form reference.
+      event.preventDefault(); const form = event.currentTarget; const data = Object.fromEntries(new FormData(form)); data.concurrency = Number(data.concurrency);
+      try { await api('/api/admin/accounts', { method:'POST', body:JSON.stringify(data) }); form.reset(); await refresh(); message('accountMessage', '账号已加密保存', 'good'); }
+      catch (error) { message('accountMessage', error.message, 'error'); }
+    });
+    q('#accountTable').addEventListener('click', async (event) => {
+      const toggle = event.target.closest('[data-account-toggle]'); const remove = event.target.closest('[data-account-delete]');
+      const rotate = event.target.closest('[data-account-token]');
+      try {
+        if (toggle) await api(`/api/admin/accounts/${toggle.dataset.accountToggle}`, { method:'PATCH', body:JSON.stringify({ enabled:toggle.dataset.enabled !== 'true' }) });
+        if (remove && confirm('删除该账号？')) await api(`/api/admin/accounts/${remove.dataset.accountDelete}`, { method:'DELETE' });
+        if (rotate) { const token = prompt('输入新的 ChatGPT access token'); if (token?.trim()) await api(`/api/admin/accounts/${rotate.dataset.accountToken}`, { method:'PATCH', body:JSON.stringify({ token:token.trim() }) }); }
+        await refresh();
+      } catch (error) { message('accountMessage', error.message, 'error'); }
+    });
+    q('#accountTable').addEventListener('change', async (event) => {
+      const select = event.target.closest('[data-account-proxy]');
+      const conc = event.target.closest('[data-account-concurrency]');
+      if (!select && !conc) return;
+      try {
+        if (select) await api(`/api/admin/accounts/${select.dataset.accountProxy}`, { method:'PATCH', body:JSON.stringify({ proxyId:select.value }) });
+        if (conc) await api(`/api/admin/accounts/${conc.dataset.accountConcurrency}`, { method:'PATCH', body:JSON.stringify({ concurrency:Number(conc.value) }) });
+        await refresh();
+      }
+      catch (error) { message('accountMessage', error.message, 'error'); }
+    });
+    q('#proxyForm').addEventListener('submit', async (event) => {
+      event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget)); const id = data.id; delete data.id;
+      try { await api(id ? `/api/admin/proxies/${id}` : '/api/admin/proxies', { method:id ? 'PUT' : 'POST', body:JSON.stringify(data) }); resetProxyForm(); await refresh(); message('proxyMessage', '代理已保存', 'good'); }
+      catch (error) { message('proxyMessage', error.message, 'error'); }
+    });
+    function resetProxyForm() { q('#proxyForm').reset(); q('#proxyForm [name="id"]').value = ''; q('#proxyFormTitle').textContent = '添加代理'; q('#cancelProxyEdit').classList.add('hidden'); }
+    q('#cancelProxyEdit').addEventListener('click', resetProxyForm);
+    q('#proxyTable').addEventListener('click', async (event) => {
+      const edit = event.target.closest('[data-proxy-edit]'); const remove = event.target.closest('[data-proxy-delete]'); const test = event.target.closest('[data-proxy-test]');
+      try {
+        if (edit) { const item = state.summary.proxies.find((proxy) => proxy.id === edit.dataset.proxyEdit); for (const key of ['id','label','url','nextProxyId']) q(`#proxyForm [name="${key}"]`).value = item[key] || ''; q('#proxyFormTitle').textContent = '编辑代理'; q('#cancelProxyEdit').classList.remove('hidden'); }
+        if (remove && confirm('删除该代理？')) await api(`/api/admin/proxies/${remove.dataset.proxyDelete}`, { method:'DELETE' });
+        if (test) { message('proxyMessage', '正在测试代理链…'); const result = await api('/api/admin/proxy-test', { method:'POST', body:JSON.stringify({ proxyId:test.dataset.proxyTest }) }); message('proxyMessage', `HTTP ${result.status} · ${result.durationMs} ms`, result.status === 200 ? 'good' : 'error'); }
+        if (remove) await refresh();
+      } catch (error) { message('proxyMessage', error.message, 'error'); }
+    });
+    q('#settingsForm').addEventListener('submit', async (event) => {
+      event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget));
+      try { await api('/api/admin/settings', { method:'PUT', body:JSON.stringify(data) }); await refresh(); message('settingsMessage', '全局路由已保存', 'good'); }
+      catch (error) { message('settingsMessage', error.message, 'error'); }
+    });
+    q('#schedForm').addEventListener('submit', async (event) => {
+      event.preventDefault(); const form = event.currentTarget;
+      const bad = SCHED_KEYS.map((key) => form.elements[key]).find((input) => !input.checkValidity());
+      if (bad) { bad.focus(); return message('schedMessage', `${bad.closest('label').firstChild.textContent.trim()}：请输入 ${bad.min}–${bad.max} 的整数`, 'error'); }
+      const data = Object.fromEntries(SCHED_KEYS.map((key) => [key, Number(form.elements[key].value)]));
+      try { await api('/api/admin/settings', { method:'PUT', body:JSON.stringify(data) }); document.activeElement?.blur(); await refresh(); message('schedMessage', '调度设置已保存', 'good'); }
+      catch (error) { message('schedMessage', error.message, 'error'); }
+    });
+    q('#testDefault').addEventListener('click', async () => {
+      try { const result = await api('/api/admin/proxy-test', { method:'POST', body:JSON.stringify({}) }); message('settingsMessage', `当前链路：HTTP ${result.status} · ${result.durationMs} ms`, result.status === 200 ? 'good' : 'error'); }
+      catch (error) { message('settingsMessage', error.message, 'error'); }
+    });
+    q('#testTencent').addEventListener('click', async () => {
+      message('settingsMessage', '正在测试腾讯云链路…');
+      try { const result = await api('/api/admin/proxy-test', { method:'POST', body:JSON.stringify({ target:'tencent' }) }); message('settingsMessage', `腾讯云链路已连通：HTTP ${result.status} · ${result.durationMs} ms`, 'good'); }
+      catch (error) { message('settingsMessage', `腾讯云链路失败：${error.message}`, 'error'); }
+    });
+    q('#reloadAccounts').addEventListener('click', () => refresh().catch((error) => message('accountMessage', error.message, 'error')));
+    q('#reloadLogs').addEventListener('click', async () => { try { renderLogs((await api('/api/admin/logs')).logs); } catch (error) { renderLogs([{ createdAt:new Date().toISOString(), route:'', status:'', durationMs:'', error:error.message }]); } });
+    /* ---------- 工作台 ---------- */
+    const bench = { mode:'image', steps:[], controller:null };
+    const fmtBytes = (n) => n >= 1048576 ? `${(n / 1048576).toFixed(2)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`;
+    try { q('#benchKey').value = sessionStorage.getItem('bench-key') || ''; } catch {}
+    q('#benchKey').addEventListener('change', () => { try { sessionStorage.setItem('bench-key', q('#benchKey').value.trim()); } catch {} });
+    function benchPath() {
+      if (bench.mode === 'speech') return '/v1/audio/speech';
+      return `${bench.steps.map((step) => `/${step}`).join('')}/v1/images/${bench.mode === 'edit' ? 'edits' : 'generations'}`;
+    }
+    function renderBench() {
+      qa('.seg [data-mode]').forEach((button) => button.classList.toggle('active', button.dataset.mode === bench.mode));
+      qa('#benchForm [data-for]').forEach((box) => box.classList.toggle('hidden', !box.dataset.for.split(' ').includes(bench.mode)));
+      q('#chain').innerHTML = bench.steps.length
+        ? bench.steps.map((step, index) => `${index ? '<span class="arrow">→</span>' : ''}<span class="chip">${step}<button type="button" data-remove="${index}" aria-label="移除第 ${index + 1} 步">×</button></span>`).join('')
+        : '<span class="hint">无后处理，走普通 /v1</span>';
+      qa('[data-step]').forEach((button) => { button.disabled = bench.steps.length >= 4; });
+      q('#endpoint').textContent = `POST ${location.origin}${benchPath()}`;
+    }
+    qa('.seg [data-mode]').forEach((button) => button.addEventListener('click', () => { bench.mode = button.dataset.mode; renderBench(); }));
+    qa('[data-step]').forEach((button) => button.addEventListener('click', () => { if (bench.steps.length < 4) bench.steps.push(button.dataset.step); renderBench(); }));
+    q('#chainClear').addEventListener('click', () => { bench.steps = []; renderBench(); });
+    q('#chain').addEventListener('click', (event) => { const remove = event.target.closest('[data-remove]'); if (remove) { bench.steps.splice(Number(remove.dataset.remove), 1); renderBench(); } });
+    function benchBody(form) {
+      const data = Object.fromEntries(new FormData(form));
+      if (bench.mode === 'speech') {
+        if (!data.input.trim()) throw new Error('请填写要朗读的文本');
+        return { model:'tts-1', input:data.input, voice:data.voice, response_format:data.audio_format };
+      }
+      if (!data.prompt.trim()) throw new Error('请填写提示词');
+      const body = { model:data.model.trim() || 'gpt-image-2', prompt:data.prompt, n:Number(data.n), response_format:data.response_format };
+      if (data.size.trim() && data.size.trim() !== 'auto') body.size = data.size.trim();
+      if (data.quality) body.quality = data.quality;
+      if (bench.mode === 'edit') {
+        const files = [...q('#editFiles').files];
+        if (!files.length) throw new Error('请选择至少 1 张参考图');
+        if (files.length > 4) throw new Error('参考图最多 4 张');
+        const big = files.find((file) => file.size > 20 * 1024 * 1024);
+        if (big) throw new Error(`${big.name} 超过 20 MB`);
+        body.images = files;
+      }
+      return body;
+    }
+    // Multipart for edits (same field names as the OpenAI SDK), JSON for everything else.
+    function benchRequest(body) {
+      if (!body.images) return { headers:{ 'Content-Type':'application/json' }, payload:JSON.stringify(body) };
+      const form = new FormData();
+      for (const [key, value] of Object.entries(body)) if (key !== 'images') form.append(key, String(value));
+      body.images.forEach((file) => form.append('image[]', file, file.name));
+      return { headers:{}, payload:form };
+    }
+    let editPreviewUrls = [];
+    q('#editFiles').addEventListener('change', () => {
+      editPreviewUrls.forEach((url) => URL.revokeObjectURL(url));
+      const files = [...q('#editFiles').files];
+      editPreviewUrls = files.map((file) => URL.createObjectURL(file));
+      q('#editPreview').innerHTML = files.map((file, index) => `<figure class="thumb"><img alt="参考图 ${index + 1}" src="${esc(editPreviewUrls[index])}"><figcaption>${esc(file.name)} · ${fmtBytes(file.size)}</figcaption></figure>`).join('');
+      qa('#editPreview img').forEach((img) => img.addEventListener('load', () => { img.nextElementSibling.textContent += ` · ${img.naturalWidth}×${img.naturalHeight}`; }));
+      if (files.length > 4) message('benchMessage', '参考图最多 4 张', 'error'); else message('benchMessage', '');
+    });
+    function newCard(path, body) {
+      const empty = q('#results > .empty'); if (empty) empty.remove();
+      const card = document.createElement('article'); card.className = 'panel result';
+      const summary = bench.mode === 'speech'
+        ? `${body.voice} · ${body.response_format} · ${body.input.length} 字`
+        : [body.images ? `参考图 ${body.images.length} 张` : '', body.model, `n=${body.n}`, body.size || 'size=auto', body.quality || 'quality=auto', body.response_format].filter(Boolean).join(' · ');
+      card.innerHTML = `<div class="result-head"><code>${esc(path)}</code><span><span class="badge wait">请求中</span> <span class="hint" data-time>0 s</span></span></div><div class="hint">${esc(summary)}</div><div class="hint">${esc((body.prompt || body.input).slice(0, 120))}</div><div data-body></div>`;
+      q('#results').prepend(card);
+      card.blobUrls = [];
+      q('#results').prepend(card);
+      qa('#results > .result').slice(8).forEach(dropCard);
+      return card;
+    }
+    function dropCard(card) { (card.blobUrls || []).forEach((url) => URL.revokeObjectURL(url)); card.remove(); }
+    q('#benchClear').addEventListener('click', () => {
+      qa('#results > .result').forEach(dropCard);
+      q('#results').innerHTML = '<div class="panel empty">还没有请求。</div>';
+    });
+    async function showImages(card, data) {
+      const grid = document.createElement('div'); grid.className = 'thumbs';
+      for (const [index, item] of (data.data || []).entries()) {
+        let src = item.url; let size = '';
+        if (item.b64_json) {
+          const mime = item.b64_json.startsWith('/9j/') ? 'image/jpeg' : 'image/png';
+          const blob = await (await fetch(`data:${mime};base64,${item.b64_json}`)).blob();
+          src = URL.createObjectURL(blob); card.blobUrls.push(src); size = fmtBytes(blob.size);
+        }
+        const figure = document.createElement('figure'); figure.className = 'thumb';
+        figure.innerHTML = `<a href="${esc(src)}" target="_blank" rel="noopener"><img alt="第 ${index + 1} 张结果" src="${esc(src)}"></a><figcaption>读取尺寸… ${size}</figcaption>`;
+        const img = q('img', figure); const caption = q('figcaption', figure);
+        img.addEventListener('load', () => {
+          caption.innerHTML = `${img.naturalWidth}×${img.naturalHeight}${size ? ` · ${size}` : ''} · <a href="${esc(src)}" download="image-${index + 1}.${item.b64_json?.startsWith('/9j/') ? 'jpg' : 'png'}">下载</a>`;
+        });
+        img.addEventListener('error', () => { caption.textContent = '图片加载失败：上游链接可能需要会话或已过期，测试建议用 b64_json'; });
+        grid.append(figure);
+      }
+      q('[data-body]', card).append(grid);
+    }
+    q('#benchForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.currentTarget; const key = q('#benchKey').value.trim();
+      if (!key) return message('benchMessage', '先填 API Key', 'error');
+      let body; try { body = benchBody(form); } catch (error) { return message('benchMessage', error.message, 'error'); }
+      const mode = bench.mode; const path = benchPath(); const card = newCard(path, body);
+      const badge = q('.badge', card); const timer = q('[data-time]', card); const started = performance.now();
+      const tick = setInterval(() => { timer.textContent = `${Math.round((performance.now() - started) / 1000)} s`; }, 1000);
+      bench.controller = new AbortController();
+      q('#benchSend').disabled = true; q('#benchAbort').classList.remove('hidden'); message('benchMessage', '');
+      try {
+        const request = benchRequest(body);
+        const response = await fetch(path, { method:'POST', signal:bench.controller.signal, headers:{ Authorization:`Bearer ${key}`, ...request.headers }, body:request.payload });
+        const seconds = ((performance.now() - started) / 1000).toFixed(1);
+        timer.textContent = `${seconds} s`;
+        if (!response.ok) {
+          const value = await response.json().catch(() => ({}));
+          badge.className = 'badge off'; badge.textContent = `HTTP ${response.status}`;
+          q('[data-body]', card).innerHTML = `<p class="error">${esc(value.error?.type ? `[${value.error.type}] ` : '')}${esc(value.error?.message || response.statusText)}</p>`;
+          return;
+        }
+        badge.className = 'badge'; badge.textContent = 'HTTP 200';
+        if (mode === 'speech') {
+          const blob = await response.blob(); const src = URL.createObjectURL(blob); card.blobUrls.push(src);
+          q('[data-body]', card).innerHTML = `<audio controls src="${esc(src)}"></audio><div class="hint">${esc(blob.type || 'audio')} · ${fmtBytes(blob.size)} · <a href="${esc(src)}" download="speech.${esc(body.response_format)}">下载</a></div>`;
+        } else {
+          await showImages(card, await response.json());
+        }
+      } catch (error) {
+        badge.className = 'badge off'; badge.textContent = error.name === 'AbortError' ? '已取消' : '网络错误';
+        q('[data-body]', card).innerHTML = `<p class="error">${esc(error.name === 'AbortError' ? '请求已取消（服务端可能仍在生成）' : error.message)}</p>`;
+      } finally {
+        clearInterval(tick); bench.controller = null;
+        q('#benchSend').disabled = false; q('#benchAbort').classList.add('hidden');
+      }
+    });
+    renderBench();
+    q('#benchAbort').addEventListener('click', () => bench.controller?.abort());
+    /* ---------- 批量导入 ---------- */
+    const imp = { rows:[], width:0, done:new Set(), busy:false, manual:false };
+    const jwtLike = (value) => /^eyJ[\w-]+\.[\w-]+\.[\w-]+$/.test(value);
+    const maskToken = (value) => value.length > 16 ? `${value.slice(0, 8)}…${value.slice(-6)} (${value.length})` : value;
+    function importSep() {
+      const value = q('#importSep').value;
+      return value === 'custom' ? q('#importSepCustom').value : value;
+    }
+    function guessFormat(lines) {
+      const sample = lines.slice(0, 20);
+      for (const sep of ['----', '\t', ',', '|']) {
+        if (sample.length && sample.every((line) => line.includes(sep))) return { mode:'split', sep };
+      }
+      return { mode:'line', sep:'----' };
+    }
+    // detect: re-guess mode/separator (only until the user picks one); resetCols: re-pick the token column.
+    function parseImport({ detect = false, resetCols = detect } = {}) {
+      if (imp.busy) return;
+      const lines = q('#importText').value.replace(/^﻿/, '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      if (detect && !imp.manual) {
+        const format = guessFormat(lines);
+        q('#importMode').value = format.mode; q('#importSep').value = format.sep;
+      }
+      const split = q('#importMode').value === 'split'; const sep = importSep();
+      q('#sepWrap').classList.toggle('hidden', !split);
+      q('#sepCustomWrap').classList.toggle('hidden', !split || q('#importSep').value !== 'custom');
+      q('#colWrap').classList.toggle('hidden', !split);
+      const cells = lines.map((line) => (split && sep ? line.split(sep).map((cell) => cell.trim()) : [line]));
+      imp.width = cells.reduce((max, row) => Math.max(max, row.length), 0);
+      if (split) fillColumns(cells, resetCols);
+      const tokenCol = split ? Number(q('#importCol').value || 0) : 0;
+      const nameCol = split && q('#importNameCol').value !== '' ? Number(q('#importNameCol').value) : -1;
+      const prefix = q('#importPrefix').value.trim() || 'batch';
+      const seen = new Set();
+      imp.rows = cells.map((row, index) => {
+        const token = row[tokenCol] || '';
+        const label = ((nameCol >= 0 && row[nameCol]) || `${prefix}-${String(index + 1).padStart(3, '0')}`).slice(0, 80);
+        let status = 'ready';
+        if (!token) status = 'empty';
+        else if (q('#importJwtOnly').checked && !jwtLike(token)) status = 'notjwt';
+        else if (seen.has(token)) status = 'dup';
+        else if (imp.done.has(token)) status = 'imported';
+        if (token) seen.add(token);
+        return { line:index + 1, token, label, status, error:'' };
+      });
+      renderImport();
+    }
+    function fillColumns(cells, guess) {
+      const previous = { token:q('#importCol').value, name:q('#importNameCol').value };
+      const first = cells[0] || [];
+      const optionsHtml = Array.from({ length:imp.width }, (_, index) => {
+        const sample = first[index] || '';
+        return `<option value="${index}">第 ${index + 1} 项${sample ? `：${esc(sample.length > 18 ? `${sample.slice(0, 12)}…(${sample.length})` : sample)}` : ''}</option>`;
+      }).join('');
+      q('#importCol').innerHTML = optionsHtml;
+      q('#importNameCol').innerHTML = `<option value="">不使用（用前缀编号）</option>${optionsHtml}`;
+      const jwtCol = first.findIndex(jwtLike);
+      q('#importCol').value = !guess && previous.token !== '' && Number(previous.token) < imp.width ? previous.token : String(Math.max(0, jwtCol));
+      q('#importNameCol').value = !guess && previous.name !== '' && Number(previous.name) < imp.width ? previous.name : '';
+    }
+    const statusText = {
+      ready:['待导入', ''], empty:['空值，跳过', 'st-skip'], notjwt:['不像 token，跳过', 'st-warn'], dup:['本批重复，跳过', 'st-skip'],
+      imported:['已导入过，跳过', 'st-skip'], running:['导入中…', ''], ok:['已导入', 'st-ok'], fail:['失败', 'st-bad'],
+    };
+    function renderImport() {
+      const rows = imp.rows; const counts = {};
+      rows.forEach((row) => { counts[row.status] = (counts[row.status] || 0) + 1; });
+      q('#importStats').textContent = rows.length
+        ? `共 ${rows.length} 行 · 待导入 ${counts.ready || 0} · 跳过 ${(counts.empty || 0) + (counts.notjwt || 0) + (counts.dup || 0) + (counts.imported || 0)}${counts.ok ? ` · 成功 ${counts.ok}` : ''}${counts.fail ? ` · 失败 ${counts.fail}` : ''}`
+        : '';
+      q('#importRun').disabled = imp.busy || !counts.ready;
+      q('#importRun').textContent = counts.ready ? `导入 ${counts.ready} 个` : '导入';
+      const shown = rows.slice(0, 300);
+      q('#importTable').innerHTML = rows.length
+        ? `<table><thead><tr><th>行</th><th>名称</th><th>Token</th><th>状态</th></tr></thead><tbody>${shown.map((row) => {
+            const [text, cls] = statusText[row.status];
+            return `<tr><td>${row.line}</td><td>${esc(row.label)}</td><td class="mono">${esc(maskToken(row.token) || '—')}</td><td class="${cls}">${esc(text)}${row.error ? `<br><small>${esc(row.error)}</small>` : ''}</td></tr>`;
+          }).join('')}</tbody></table>${rows.length > shown.length ? `<div class="empty">仅显示前 300 行，导入会处理全部 ${rows.length} 行</div>` : ''}`
+        : '<div class="empty">载入文件或粘贴内容后显示</div>';
+    }
+    q('#importFile').addEventListener('change', async (event) => {
+      const file = event.target.files[0]; if (!file) return;
+      if (file.size > 5 * 1024 * 1024) { message('importMessage', '文件超过 5 MB', 'error'); event.target.value = ''; return; }
+      q('#importText').value = await file.text(); imp.manual = false; message('importMessage', `已载入 ${file.name}`); parseImport({ detect:true });
+    });
+    let importTimer;
+    q('#importText').addEventListener('input', () => { clearTimeout(importTimer); importTimer = setTimeout(() => parseImport({ detect:true }), 300); });
+    ['#importMode', '#importSep'].forEach((id) => q(id).addEventListener('change', () => { imp.manual = true; parseImport({ resetCols:true }); }));
+    ['#importCol', '#importNameCol', '#importJwtOnly'].forEach((id) => q(id).addEventListener('change', () => parseImport()));
+    q('#importSepCustom').addEventListener('input', () => parseImport({ resetCols:true }));
+    q('#importPrefix').addEventListener('input', () => parseImport());
+    q('#importReset').addEventListener('click', () => { q('#importText').value = ''; q('#importFile').value = ''; imp.manual = false; message('importMessage', ''); parseImport(); });
+    q('#importRun').addEventListener('click', async () => {
+      const pending = imp.rows.filter((row) => row.status === 'ready');
+      if (!pending.length || imp.busy) return;
+      imp.busy = true; const proxyId = q('#importProxy').value; let ok = 0; let fail = 0;
+      for (const [index, row] of pending.entries()) {
+        row.status = 'running'; if (index % 10 === 0) renderImport();
+        try {
+          await api('/api/admin/accounts', { method:'POST', body:JSON.stringify({ label:row.label, token:row.token, ...(proxyId ? { proxyId } : {}) }) });
+          row.status = 'ok'; imp.done.add(row.token); ok += 1;
+        } catch (error) { row.status = 'fail'; row.error = error.message; fail += 1; }
+        message('importMessage', `正在导入 ${index + 1}/${pending.length}…`);
+      }
+      imp.busy = false; renderImport();
+      message('importMessage', `导入完成：成功 ${ok}，失败 ${fail}`, fail ? 'error' : 'good');
+      refresh().catch(() => {});
+    });
+    if (state.key) { q('#adminKey').value = state.key; refresh().catch(() => { state.key = ''; sessionStorage.removeItem('admin-key'); }); }
+  </script>
+</body>
+</html>
