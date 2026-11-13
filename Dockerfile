@@ -1,5 +1,5 @@
 # Only runtime dependency is sharp; npm ci keeps optional deps so the musl libvips binary is installed.
-FROM node:24.22.1-alpine3.23
+FROM node:24.22.2-alpine3.23
 WORKDIR /app
 ENV NODE_ENV=production HOST=0.0.0.0 PORT=8080 DATA_DIR=/data
 COPY package.json package-lock.json ./
